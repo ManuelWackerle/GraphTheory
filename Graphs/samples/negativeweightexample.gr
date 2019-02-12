@@ -1,0 +1,15 @@
+# A small weighted graph example, for Dijkstra/Prim/Kruskal, with NEGATIVE weights:
+# num of vertices:
+8
+# edges:
+0,7:1
+0,1:2
+3,0:2
+3,1:1
+2,3:-5
+7,2:3
+7,6:4
+6,2:2
+5,6:3
+4,5:4
+1,4:-3
