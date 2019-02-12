@@ -11,8 +11,10 @@ Includes functions for reading and writing graphs, in a very simple readable for
 
 import sys
 from typing import IO, Tuple, List, Union
-from Graphs.graph import Edge
 from Graphs.mygraphs import MyGraph
+from Graphs.edge import Edge
+from Graphs.vertex import Vertex
+
 
 DEFAULT_COLOR_SCHEME = "paired12"
 NUM_COLORS = 12

@@ -333,6 +333,7 @@ class Graph(object):
         :param other: Graph to add to `self'.
         :return: New graph which is a disjoint union of `self' and `other'.
         """
+
         iso = {}
         for v in other.vertices:
             label = self._next_label()

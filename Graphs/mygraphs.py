@@ -1,5 +1,6 @@
-from typing import List, Union, Set
-from Graphs.graph import Vertex, Edge, GraphError, UnsafeGraph
+from Graphs.vertex import Vertex
+from Graphs.edge import Edge
+from typing import IO, Tuple, List, Union, Set
 from Graphs.graph_io import *
 import random
 
@@ -70,6 +71,7 @@ class MyGraph(object):
         self._e.append(edge)
         edge.head._add_incidence(edge)
         edge.tail._add_incidence(edge)
+            
 
     def complement(self, ignore_not_simple: bool = False):
         if ignore_not_simple or self.simple:
@@ -83,17 +85,22 @@ class MyGraph(object):
             raise GraphError("The complement exists only for simple graphs")
         return C
 
-    def __add__(self, other: "Graph") -> "Graph":
-        iso = {}
+    def __add__(self, other: "MyGraph") -> "MyGraph":
+        g_new = MyGraph(self.directed, self._size, self.simple)
+        iso1, iso2 = {}, {}
+        for i in range(0, len(self.vertices)):
+            iso1.update({self.vertices[i]: g_new.vertices[i]})
         for v in other.vertices:
-            label = self._next_label()
-            v_new = Vertex(self, label)
-            self.add_vertex(v_new)
-            iso.update({v: v_new})
+            v_new = Vertex(g_new)
+            g_new.add_vertex(v_new)
+            iso2.update({v: v_new})
+        for e in self.edges:
+            new_e = Edge(iso1[e.tail], iso1[e.head])
+            g_new.add_edge(new_e)
         for e in other.edges:
-            new_e = Edge(iso[e.tail], iso[e.head])
-            self.add_edge(new_e)
-        return self
+            new_e = Edge(iso2[e.tail], iso2[e.head])
+            g_new.add_edge(new_e)
+        return g_new
 
     def __iadd__(self, other: Union[Edge, Vertex]) -> "MyGraph":
         if isinstance(other, Vertex):
@@ -161,7 +168,7 @@ class MyGraph(object):
             i += 1
         return inc_matrix
 
-    def uninformed_search_weighted(self, v: "Vertex", dfs):
+    def uninformed_search_weighted(self, v: "Vertex", dfs: bool=False):
         frontier = [(self.vertices[0], 0)]
         closed = []
         while len(frontier) != 0:
@@ -181,34 +188,37 @@ class MyGraph(object):
             closed.append(cur_ver)
         return False
 
-    def unifromed_search_relable(self, v: "Vertex", re_label, dfs):
+    def unifromed_search_relable(self, dfs: bool=False):
+        colours = ['#ffb2b2', '#ff9999', '#ff7f7f', '#ff6666', '#ff4c4c', '#ff3232', '#ff1919', '#ff0000', '#e50000',
+                   '#cc0000', '#b20000', '#990000', '#7f0000', '# 660000', '# 4c0000', '# 330000', '# 190000','# 000000']
         frontier = [(self.vertices[0], 0)]
         closed = []
         found = False
         result = (found, -1)
         inc = 0
-        if re_label:
-            re_lab = {frontier[0][0].label: 0}
+        re_lab = {frontier[0][0].label: 0}
         while len(frontier) != 0:
             if dfs: current = frontier.pop()
             else: current = frontier.pop(0)
             cur_ver = current[0]
             for ver in cur_ver.neighbours:
                 depth = current[1] + 1
-                if re_label and ver.label not in re_lab.keys():
-                    inc += 1
-                    re_lab.update({ver.label: inc})
-                if v == ver and not found:
-                    found = True
-                    result = (found, depth)
                 if ver not in closed:
                     frontier.append((ver, depth))
+            if cur_ver.label not in re_lab.keys():
+                inc += 1
+                re_lab.update({cur_ver.label: inc})
             closed.append(cur_ver)
-        if re_label and found:
-            for vertex in self.vertices:
-                old = vertex.label
-                vertex.label = re_lab[old]
-        return result
+
+        for vertex in self.vertices:
+            old = vertex.label
+            new = re_lab[old]
+            vertex.label = new
+            if old < len(colours):
+                vertex.colortext = colours[new]
+            else:
+                vertex.colortext = '#000000'
+        return self
 
 
 def single_path_graph(n):
@@ -264,26 +274,47 @@ def ordered_degree_graph(n):
             gr.add_edge(Edge(gr.vertices[i], gr.vertices[j]))
     return gr
 
+def full_tree_graph(n):
+    gr = MyGraph(False, n, True)
+    i = 0
+    while i < (n - 1)//2:
+        gr.add_edge(Edge(gr.vertices[i], gr.vertices[i * 2 + 1]))
+        gr.add_edge(Edge(gr.vertices[i], gr.vertices[i * 2 + 2]))
+        i += 1
+    return gr
+
 
 
 if __name__ == '__main__':
     print("___________TESTING____________")
     # gr1 = single_path_graph(7)
-    gr2 = single_cycle_graph(7)
+    # gr2 = single_cycle_graph(7)
     # gr22 = single_cycle_graph(7)
     # gr3 = complete_graph(12, False)
+    G = full_tree_graph(15)
     #
-    # with open('C:/Code_PyCharm/Mod7Prac/Graphs/samples/examplegraph.gr', 'r') as f:
+    # with open('./samples/negativeweightexample.gr', 'r') as f:
     #     G = load_graph(f)
+    # print(G)
 
-    D = random_graph(30, 0.07)
-    E = D.complement()
+    # oldG = G
+    G.unifromed_search_relable()
+    # print(G)
+
+    # F = oldG
+    # D = random_graph(3, 0.5)
+    # E = D.complement()
+    # F = D + E
+    # F.add_edge(Edge(F.vertices[1], F.vertices[5]))
     # with open('examplegraph2.gr', 'w') as f:
     #     save_graph(D, f)
+    #
+    # with open('C:/Code_PyCharm/Mod7Prac/Graphs/samples/examplegraph.gr', 'w') as f:
+    #     save_graph(F, f)
 
     with open('mygraph.dot', 'w') as f:
-        write_dot(D, f)
-
+        write_dot(G, f)
+    #
 
 
 

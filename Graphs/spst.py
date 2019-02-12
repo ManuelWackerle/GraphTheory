@@ -1,25 +1,24 @@
-import Graphs.graph
-from Graphs.graph_io import load_graph, write_dot # graphIO import graphs.py, so we do not need to import it here.
 import os
+from Graphs.graph_io import *
 import math
 
 # Use these options to change the tests:
 
 TEST_BELLMAN_FORD_DIRECTED = True
-TEST_BELLMAN_FORD_UNDIRECTED = True
+TEST_BELLMAN_FORD_UNDIRECTED = False
 TEST_DIJKSTRA_DIRECTED = True
-TEST_DIJKSTRA_UNDIRECTED = True
+TEST_DIJKSTRA_UNDIRECTED = False
 
 WRITE_DOT_FILES = True
 
 # Use this to select the graphs to test your algorithms on:
-TestInstances = ["weightedexample.gr"]
+# TestInstances = ["weightedexample.gr"]
 # TestInstances=["randomplanar.gr"]
 # TestInstances=["randomplanar10.gr"]
 # TestInstances=["bd.gr","bbf.gr"]; WriteDOTFiles=False
 # TestInstances=["bbf2000.gr"]; WriteDOTFiles=False
 # TestInstances=["bbf200.gr"]
-# TestInstances=["negativeweightexample.gr"]
+TestInstances=["negativeweightexample.gr"]
 # TestInstances=["negativeweightcycleexample.gr"]
 # TestInstances=["WDE100.gr","WDE200.gr","WDE400.gr","WDE800.gr","WDE2000.gr"]; WriteDOTFiles=False
 # TestInstances=["weightedex500.gr"];	WriteDOTFiles=False
@@ -27,85 +26,108 @@ TestInstances = ["weightedexample.gr"]
 
 USE_UNSAFE_GRAPH = False
 
+def min_i(vertex_list):
+    min = vertex_list[0].dist
+    index, min_i = 0, 0
+    for v in vertex_list:
+        if v.dist < min:
+            min = v.dist
+            min_i = index
+        index += 1
+    return min_i
+
+def relax(edge, flip_edge: bool=False):
+    no_change = False
+    if flip_edge:
+        head, tail = edge.tail, edge.head
+    else:
+        head, tail = edge.head, edge.tail
+    short = tail.dist + edge.weight
+    if head.dist > short:
+        head.dist = short
+        head.in_edge = edge
+    else:
+        no_change = True
+    return no_change
 
 def bellman_ford_undirected(graph, start):
-    """
-    Arguments: <graph> is a graph object, where edges have integer <weight>
-        attributes,	and <start> is a vertex of <graph>.
-    Action: Uses the Bellman-Ford algorithm to compute all vertex distances
-        from <start> in <graph>, and assigns these values to the vertex attribute <dist>.
-        Optional: assigns the vertex attribute <in_edge> to be the incoming
-        shortest path edge, for every reachable vertex except <start>.
-        <graph> is viewed as an undirected graph.
-    """
-    # Initialize the vertex attributes:
     for v in graph.vertices:
         v.dist = math.inf
         v.in_edge = None
-
+    size = len(graph.vertices)
     start.dist = 0
+    for i in range(1, size):
+        for e in graph.edges:
+            relax(e)
+            relax(e, True)
 
-    # Insert your code here.
-
+def bellman_ford_directed_i(graph, start):
+    for v in graph.vertices:
+        v.dist = math.inf
+        v.in_edge = None
+    size = len(graph.vertices)
+    start.dist = 0
+    for i in range(1, size):
+        for e in graph.edges:
+            relax(e)
 
 def bellman_ford_directed(graph, start):
-    """
-    Arguments: <graph> is a graph object, where edges have integer <weight>
-        attributes,	and <start> is a vertex of <graph>.
-    Action: Uses the Bellman-Ford algorithm to compute all vertex distances
-        from <start> in <graph>, and assigns these values to the vertex attribute <dist>.
-        Optional: assigns the vertex attribute <in_edge> to be the incoming
-        shortest path edge, for every reachable vertex except <start>.
-        <graph> is viewed as a directed graph.
-    """
-    # Initialize the vertex attributes:
     for v in graph.vertices:
         v.dist = math.inf
         v.in_edge = None
-
+    size = len(graph.vertices)
     start.dist = 0
-
-    # Insert your code here.
-
+    for i in range(1, size):
+        halt = True
+        for e in graph.edges:
+            halt = relax(e) and halt
+        if halt:
+            return halt
+    print("Negative Cycles Were Detected!")
+    return halt
 
 def dijkstra_undirected(graph, start):
-    """
-    Arguments: <graph> is a graph object, where edges have integer <weight>
-        attributes,	and <start> is a vertex of <graph>.
-    Action: Uses Dijkstra's algorithm to compute all vertex distances
-        from <start> in <graph>, and assigns these values to the vertex attribute <dist>.
-        Optional: assigns the vertex attribute <in_edge> to be the incoming
-        shortest path edge, for every reachable vertex except <start>.
-        <graph> is viewed as an undirected graph.
-    """
-    # Initialize the vertex attributes:
     for v in graph.vertices:
         v.dist = math.inf
         v.in_edge = None
-
     start.dist = 0
+    queue = [start]
+    closed = []
+    while (len(queue) != 0):
+        i = min_i(queue)
+        u = queue.pop(i)
+        closed.append(u)
+        for e in u.incidence:
+            if e.tail == u:
+                relax(e)
+                if e.head not in queue and e.head not in closed:
+                    queue.append(e.head)
+            else:
+                relax(e, True)
+                if e.tail not in queue and e.tail not in closed:
+                    queue.append(e.tail)
 
-    # Insert your code here.
-
-
-def dijkstra_directed(graph, start):
-    """
-    Arguments: <graph> is a graph object, where edges have integer <weight>
-        attributes,	and <start> is a vertex of <graph>.
-    Action: Uses Dijkstra's algorithm to compute all vertex distances
-        from <start> in <graph>, and assigns these values to the vertex attribute <dist>.
-        Optional: assigns the vertex attribute <in_edge> to be the incoming
-        shortest path edge, for every reachable vertex except <start>.
-        <graph> is viewed as a directed graph.
-    """
-    # Initialize the vertex attributes:
+def dijkstra_directed(graph, start: Vertex):
     for v in graph.vertices:
         v.dist = math.inf
         v.in_edge = None
-
     start.dist = 0
+    queue = [start]
+    closed = []
+    while (len(queue) != 0):
+        i = min_i(queue)
+        u = queue.pop(i)
+        closed.append(u)
+        for e in u.incidence:
+            if e.tail == u:
+                relax(e)
+                if e.head not in queue and e.head not in closed:
+                    queue.append(e.head)
 
-    # Insert your code here.
+
+
+
+
 
 ##############################################################################
 #
@@ -171,7 +193,8 @@ def do_testalg(testalg, G):
                 v.label = v._label
 
         if WRITE_DOT_FILES:
-            with open(os.path.join(os.getcwd(), testalg[3] + '.dot'), 'w') as f:
+            print(os.path.join(os.getcwd(),'outgraphs\\' + testalg[3] + '.dot'), 'w')
+            with open(os.path.join(os.getcwd(),'outgraphs\\' + testalg[3] + '.dot'), 'w') as f:
                 write_dot(G, f, directed=testalg[4])
 
 
@@ -198,7 +221,7 @@ if __name__ == "__main__":
                     G = load_graph(f, graph.Graph)
             else:
                 print("\n\nLoading graph", FileName)
-                with open(os.path.join(os.getcwd(), FileName)) as f:
+                with open('./samples/' +  FileName) as f:
                     G = load_graph(f)
 
             for i, vertex in enumerate(list(G.vertices)):
