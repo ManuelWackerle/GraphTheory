@@ -21,7 +21,9 @@ class Vertex(object):
             label = graph._next_label()
 
         self._graph = graph
-        self.colortext = '#00000'
+        # self.colortext = '#00000'
+        self.colornum = 0
+        self.colornew = 0
         self.label = label
         self._incidence = {}
 

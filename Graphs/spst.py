@@ -18,10 +18,12 @@ WRITE_DOT_FILES = True
 # TestInstances=["bd.gr","bbf.gr"]; WriteDOTFiles=False
 # TestInstances=["bbf2000.gr"]; WriteDOTFiles=False
 # TestInstances=["bbf200.gr"]
-TestInstances=["negativeweightexample.gr"]
+# TestInstances=["negativeweightexample.gr"]
 # TestInstances=["negativeweightcycleexample.gr"]
 # TestInstances=["WDE100.gr","WDE200.gr","WDE400.gr","WDE800.gr","WDE2000.gr"]; WriteDOTFiles=False
 # TestInstances=["weightedex500.gr"];	WriteDOTFiles=False
+# TestInstances=["randomweighted.gr"]
+TestInstances=["graph1.gr"]
 
 
 USE_UNSAFE_GRAPH = False
@@ -42,6 +44,8 @@ def relax(edge, flip_edge: bool=False):
         head, tail = edge.tail, edge.head
     else:
         head, tail = edge.head, edge.tail
+    # if edge.weight is None:
+    #     edge.set_weigth(1)
     short = tail.dist + edge.weight
     if head.dist > short:
         head.dist = short
@@ -61,7 +65,7 @@ def bellman_ford_undirected(graph, start):
             relax(e)
             relax(e, True)
 
-def bellman_ford_directed_i(graph, start):
+def bellman_ford_directed_simple(graph, start):
     for v in graph.vertices:
         v.dist = math.inf
         v.in_edge = None
@@ -127,8 +131,6 @@ def dijkstra_directed(graph, start: Vertex):
 
 
 
-
-
 ##############################################################################
 #
 # Below is test code that does not need to be changed.
@@ -157,7 +159,7 @@ def prepare_drawing(graph):
         e.colornum = 0
     for v in graph.vertices:
         if hasattr(v, "in_edge") and v.in_edge is not None:
-            v.in_edge.colornum = 1
+            v.in_edge.colornum = 3
     for v in graph:
         v.label = str(v.dist)
 
@@ -193,6 +195,8 @@ def do_testalg(testalg, G):
                 v.label = v._label
 
         if WRITE_DOT_FILES:
+            # print(os.path.join(os.getcwd(),'testgraphs\\' + testalg[3] + '.dot'), 'w')
+            # with open(os.path.join(os.getcwd(),'testgraphs\\' + testalg[3] + '.dot'), 'w') as f:
             print(os.path.join(os.getcwd(),'outgraphs\\' + testalg[3] + '.dot'), 'w')
             with open(os.path.join(os.getcwd(),'outgraphs\\' + testalg[3] + '.dot'), 'w') as f:
                 write_dot(G, f, directed=testalg[4])
@@ -221,7 +225,8 @@ if __name__ == "__main__":
                     G = load_graph(f, graph.Graph)
             else:
                 print("\n\nLoading graph", FileName)
-                with open('./samples/' +  FileName) as f:
+                # with open('./testgraphs/' +  FileName) as f:
+                with open('./testgraphs/' + FileName) as f:
                     G = load_graph(f)
 
             for i, vertex in enumerate(list(G.vertices)):

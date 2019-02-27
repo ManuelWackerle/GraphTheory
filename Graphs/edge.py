@@ -60,6 +60,9 @@ class Edge(object):
         """
         return self._weight
 
+    def set_weigth(self, weight):
+        self._weight = weight
+
     def other_end(self, vertex: Vertex) -> Vertex:
         """
         Given one end `vertex` of the edge, this returns

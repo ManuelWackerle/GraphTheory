@@ -1,8 +1,12 @@
 from Graphs.vertex import Vertex
 from Graphs.edge import Edge
 from typing import IO, Tuple, List, Union, Set
+from time import time
 from Graphs.graph_io import *
 import random
+from copy import deepcopy
+import networkx as nx
+import matplotlib.pyplot as plt
 
 class MyGraph(object):
     def __init__(self, directed: bool, n: int=0, simple: bool=False):
@@ -86,9 +90,10 @@ class MyGraph(object):
         return C
 
     def __add__(self, other: "MyGraph") -> "MyGraph":
-        g_new = MyGraph(self.directed, self._size, self.simple)
+        g_new = MyGraph(self.directed, 0, self.simple)
         iso1, iso2 = {}, {}
         for i in range(0, len(self.vertices)):
+            g_new.add_vertex(Vertex(g_new))
             iso1.update({self.vertices[i]: g_new.vertices[i]})
         for v in other.vertices:
             v_new = Vertex(g_new)
@@ -132,6 +137,157 @@ class MyGraph(object):
             self._size -= 1
             self._v.remove(vertex)
 
+    def deepcopy(self):
+        copy = MyGraph(self.directed, 0, self.simple)
+        iso = {}
+        for i in range(0, len(self.vertices)):
+            self.add_vertex(Vertex(self, v.label))
+            iso.update({self.vertices[i]: copy.vertices[i]})
+        for e in self.edges:
+            new_e = Edge(iso[e.tail], iso[e.head])
+            copy.add_edge(new_e)
+
+    def mapcopy(self, map):
+        newmap = {}
+        for k in map.keys():
+            nk = deepcopy(k)
+            na = []
+            for v in map.get(k):
+                na.append(v)
+            newmap.update({nk: na})
+        return newmap
+
+
+    def contains_cycle(self):
+
+        if self.directed:
+            pass
+        else:
+            for v in self.vertices:
+                pass
+
+    def isisomorphic(self, graph):
+        length = len(self.vertices)
+        if len(graph.vertices) != length:
+            return False, None, None
+        n_graph = self + graph
+        size = len(n_graph.vertices)
+        map = {}
+        col_list = [-1] * size
+        for v in n_graph.vertices:
+            vd = v.degree
+            v.colornum = vd
+            v.colornew = vd
+            col_list[vd] = vd
+            if vd in map:
+                map.get(vd).append(v)
+            else:
+                map.update({vd: [v]})
+        map_update = self.mapcopy(map)
+        old = len(map.keys())
+        new = old - 1
+        while old != new:
+            old = new
+            for k in map.keys():
+                ver = map.get(k)[0]
+                gcolour = self.neighbour_colours(ver)
+                first = True
+                for v in map[k]:
+                    if self.neighbour_colours(v) != gcolour:
+                        map_update[k].remove(v)
+                        if first:
+                            nc = self.next_col(col_list)
+                            col_list[nc] = nc
+                            first = False
+                        v.colornew = nc
+                        if nc in map_update:
+                            map_update.get(nc).append(v)
+                        else:
+                            map_update.update({nc: [v]})
+                for v in map[k]:
+                    v.colornum = v.colornew
+            map = self.mapcopy(map_update)
+            new = len(map_update.keys())
+        colours = []
+        premap = {}
+        mapping = {}
+        for i in range(0, length):
+            v = n_graph.vertices[i]
+            v_col = v.colornum
+            if v_col in colours:
+                return "undetermined", n_graph, None
+            else:
+                colours.append(v_col)
+                premap.update({v_col: v})
+        for i in range(length, length * 2):
+            u = n_graph.vertices[i]
+            u_col = u.colornum
+            if u_col in colours:
+                colours.remove(u_col)
+                mapping.update({premap.get(u_col): u})
+            else:
+                return False, n_graph, None
+        return True, n_graph, mapping
+
+
+    def colour_refinement(self):
+        startt = time()
+        size = len(self.vertices)
+        map = {}
+        colours = [-1] * size
+        for v in self.vertices:
+            vd = v.degree
+            v.colornum = vd
+            v.colornew = vd
+            colours[vd] = vd
+            if vd in map:
+                map.get(vd).append(v)
+            else:
+                map.update({vd: [v]})
+        map_update = self.mapcopy(map)
+        old = len(map.keys())
+        new = old - 1
+        while old != new:
+            old = new
+            for k in map.keys():
+                ver = map.get(k)[0]
+                gcolour = self.neighbour_colours(ver)
+                first = True
+                for v in map[k]:
+                    if self.neighbour_colours(v) != gcolour:
+                        map_update[k].remove(v)
+                        if first:
+                            nc = self.next_col(colours)
+                            colours[nc] = nc
+                            first = False
+                        v.colornew = nc
+                        if nc in map_update:
+                            map_update.get(nc).append(v)
+                        else:
+                            map_update.update({nc: [v]})
+                for v in map[k]:
+                    v.colornum = v.colornew
+            map = self.mapcopy(map_update)
+            new = len(map_update.keys())
+        endt = time()
+        print("Elapsed time in seconds:", endt - startt)
+        if -1 not in colours:
+            return True
+
+    def next_col(self, colours):
+        i = 0
+        while colours[i] != -1:
+            i += 1
+        return i
+
+    def neighbour_colours(self, vertex: Vertex):
+        group = vertex.neighbours
+        gcolour = []
+        for g in group:
+            gcolour.append(g.colornum)
+        s1 = sorted(gcolour)
+        return s1
+
     def construct_adjacency_matrix(self):
         adj_matrix = []
         i = 0
@@ -168,6 +324,12 @@ class MyGraph(object):
             i += 1
         return inc_matrix
 
+    def make_isomorphism(self):
+        new_g = MyGraph(self.directed, 0, self.simple)
+        for i in range(0, len(self.vertices)):
+            g_new.add_vertex(Vertex(g_new))
+            iso1.update({self.vertices[i]: g_new.vertices[i]})
+
     def uninformed_search_weighted(self, v: "Vertex", dfs: bool=False):
         frontier = [(self.vertices[0], 0)]
         closed = []
@@ -191,30 +353,24 @@ class MyGraph(object):
     def unifromed_search_relable(self, dfs: bool=False):
         colours = ['#ffb2b2', '#ff9999', '#ff7f7f', '#ff6666', '#ff4c4c', '#ff3232', '#ff1919', '#ff0000', '#e50000',
                    '#cc0000', '#b20000', '#990000', '#7f0000', '# 660000', '# 4c0000', '# 330000', '# 190000','# 000000']
-        frontier = [(self.vertices[0], 0)]
+        frontier = [self.vertices[0]]
         closed = []
-        found = False
-        result = (found, -1)
-        inc = 0
-        re_lab = {frontier[0][0].label: 0}
+        incr = 0
+        re_lab = {frontier[0].label: 0}
         while len(frontier) != 0:
-            if dfs: current = frontier.pop()
-            else: current = frontier.pop(0)
-            cur_ver = current[0]
+            if dfs: cur_ver = frontier.pop()
+            else: cur_ver = frontier.pop(0)
             for ver in cur_ver.neighbours:
-                depth = current[1] + 1
-                if ver not in closed:
-                    frontier.append((ver, depth))
-            if cur_ver.label not in re_lab.keys():
-                inc += 1
-                re_lab.update({cur_ver.label: inc})
+                if ver not in closed and ver not in frontier:
+                    frontier.append(ver)
+            re_lab.update({cur_ver.label: incr})
+            incr += 1
             closed.append(cur_ver)
-
         for vertex in self.vertices:
             old = vertex.label
             new = re_lab[old]
             vertex.label = new
-            if old < len(colours):
+            if new < len(colours):
                 vertex.colortext = colours[new]
             else:
                 vertex.colortext = '#000000'
@@ -241,7 +397,7 @@ def complete_graph(size, directed):
     for j in range(0, size - 1):
         for k in range(j + 1, size):
             v1, v2 = gr.vertices[j], gr.vertices[k]
-            gr.add_edge(Edge(v1, v2))
+            gr.add_edge(Edge(v1, v2, 1))
             if directed:
                 gr.add_edge(Edge(v2, v1))
     return gr
@@ -256,7 +412,7 @@ def cube_graph(dim):
         for i in range(0, 2**(dim - 1)):
             v1 = (i & right) + ((i << 1) & left)
             v2 = v1 + mid
-            gr.add_edge(Edge(gr.vertices[v1], gr.vertices[v2]))
+            gr.add_edge(Edge(gr.vertices[v1], gr.vertices[v2], 1))
     return gr
 
 def random_graph(n, edge_frequency):
@@ -264,14 +420,14 @@ def random_graph(n, edge_frequency):
     for i in range(0, n - 1):
         for j in range(i + 1, n):
             if random.uniform(0, 1) < edge_frequency:
-                gr.add_edge(Edge(gr.vertices[i], gr.vertices[j]))
+                gr.add_edge(Edge(gr.vertices[i], gr.vertices[j], random.randint(1,7)))
     return gr
 
 def ordered_degree_graph(n):
     gr = MyGraph(False, n, True)
     for i in range(0, n//2):
         for j in range(i + 1, n-i):
-            gr.add_edge(Edge(gr.vertices[i], gr.vertices[j]))
+            gr.add_edge(Edge(gr.vertices[i], gr.vertices[j], random.randint(1,n)))
     return gr
 
 def full_tree_graph(n):
@@ -283,6 +439,12 @@ def full_tree_graph(n):
         i += 1
     return gr
 
+def spanning_tree_from_seq(sequence):
+    pass
+
+def seq_from_spanning_tree(G):
+    G.containscycle
+    pass
 
 
 if __name__ == '__main__':
@@ -291,30 +453,73 @@ if __name__ == '__main__':
     # gr2 = single_cycle_graph(7)
     # gr22 = single_cycle_graph(7)
     # gr3 = complete_graph(12, False)
-    G = full_tree_graph(15)
-    #
-    # with open('./samples/negativeweightexample.gr', 'r') as f:
+    # G = random_graph(16, 0.24)
+    G = MyGraph(False, 8, True)
+    gv = G.vertices
+    G.add_edge(Edge(gv[1], gv[2], 1))
+    G.add_edge(Edge(gv[1], gv[4], 1))
+    G.add_edge(Edge(gv[2], gv[3], 1))
+    G.add_edge(Edge(gv[2], gv[4], 1))
+    G.add_edge(Edge(gv[2], gv[5], 1))
+    G.add_edge(Edge(gv[4], gv[5], 1))
+    G.add_edge(Edge(gv[4], gv[0], 1))
+    G.add_edge(Edge(gv[5], gv[0], 1))
+    G.add_edge(Edge(gv[4], gv[6], 1))
+    G.add_edge(Edge(gv[4], gv[7], 1))
+    G.add_edge(Edge(gv[6], gv[7], 1))
+    G.add_edge(Edge(gv[7], gv[5], 1))
+
+    F = MyGraph(False, 8, True)
+    gv = F.vertices
+    F.add_edge(Edge(gv[1], gv[2], 1))
+    F.add_edge(Edge(gv[1], gv[3], 1))
+    F.add_edge(Edge(gv[1], gv[4], 1))
+    F.add_edge(Edge(gv[2], gv[3], 1))
+    F.add_edge(Edge(gv[2], gv[5], 1))
+    F.add_edge(Edge(gv[4], gv[5], 1))
+    F.add_edge(Edge(gv[5], gv[0], 1))
+    F.add_edge(Edge(gv[1], gv[5], 1))
+    F.add_edge(Edge(gv[1], gv[6], 1))
+    F.add_edge(Edge(gv[1], gv[7], 1))
+    F.add_edge(Edge(gv[6], gv[7], 1))
+    F.add_edge(Edge(gv[7], gv[2], 1))
+
+    # G = full_tree_graph(7)
+    # F = full_tree_graph(7)
+    # F.unifromed_search_relable(True)
+
+    startt = time()
+    result = G.isisomorphic(F)
+    time_elapsed = time() - startt
+    print("Elapsed time in seconds:", time_elapsed)
+    print(result[0])
+    H = result[1]
+    # G = cube_graph(4)
+    # G = ordered_degree_graph(16)
+    # with open('./samples/randomweighted.gr', 'r') as f:
     #     G = load_graph(f)
     # print(G)
-
     # oldG = G
-    G.unifromed_search_relable()
+    # G.unifromed_search_relable()
     # print(G)
 
     # F = oldG
-    # D = random_graph(3, 0.5)
+    # G = random_graph(15, 0.25)
     # E = D.complement()
     # F = D + E
     # F.add_edge(Edge(F.vertices[1], F.vertices[5]))
     # with open('examplegraph2.gr', 'w') as f:
     #     save_graph(D, f)
-    #
-    # with open('C:/Code_PyCharm/Mod7Prac/Graphs/samples/examplegraph.gr', 'w') as f:
-    #     save_graph(F, f)
 
-    with open('mygraph.dot', 'w') as f:
-        write_dot(G, f)
-    #
+    # with open('./samples/randomweighted.gr', 'w') as f:
+    #     save_graph(G, f)
+
+    with open('dotgraph.dot', 'w') as f:
+        write_dot(H, f)
+    # G = nx.petersen_graph()
+    # plt.subplot(121)
+    # nx.draw(G, with_labels=True, font_weight='bold')
+    # plt.show()
 
 
 
