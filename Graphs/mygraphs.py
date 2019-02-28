@@ -229,6 +229,77 @@ class MyGraph(object):
                 return False, n_graph, None
         return True, n_graph, mapping
 
+    def is_isomorphic_by_colour(self, graph):
+        length = len(self.vertices)
+        n_graph = self + graph
+        if len(graph.vertices) != length:
+            return False, n_graph, None
+        size = length * 2
+        partition = []
+        for i in range(0,size):
+            partition.append([])
+        deg_list = [-1] * (size - 1)
+        for u in n_graph.vertices:
+            ud = u.degree
+            deg_list[ud] = ud
+        self.relabel_col(deg_list)
+        label = 1
+        for v in n_graph.vertices:
+            vd = v.degree
+            label = deg_list[vd]
+            v.colornum = label
+            v.colornew = label
+            partition[label].append(v)
+        point = label
+        n_point = point + 1
+        while point != n_point:
+            point = n_point
+            iter = 0
+            while iter < n_point:
+                col_group = partition[iter]
+                iter += 1
+                width = len(col_group)
+                if width > 1:
+                    type = self.neighbour_colours(col_group[0])
+                    first = True
+                    for i in range(1, width):
+                        v = col_group[i]
+                        if self.neighbour_colours(v) != type:
+                            if first:
+                                nc = n_point
+                                n_point += 1
+                                first = False
+                            v.colornew = nc
+                    k = 1
+                    for j in range(1, width):
+                        y = col_group[k]
+                        nc = y.colornew
+                        if y.colornum != nc:
+                            col_group.remove(y)
+                            partition[nc].append(y)
+                            y.colornum = nc
+                        else:
+                            k += 1
+        colours = []
+        premap = {}
+        mapping = {}
+        for i in range(0, length):
+            v = n_graph.vertices[i]
+            v_col = v.colornum
+            if v_col in colours:
+                return "undetermined", n_graph, None
+            else:
+                colours.append(v_col)
+                premap.update({v_col: v})
+        for i in range(length, length * 2):
+            u = n_graph.vertices[i]
+            u_col = u.colornum
+            if u_col in colours:
+                colours.remove(u_col)
+                mapping.update({premap.get(u_col): u})
+            else:
+                return False, n_graph, None
+        return True, n_graph, mapping
 
     def colour_refinement(self):
         startt = time()
@@ -279,6 +350,13 @@ class MyGraph(object):
         while colours[i] != -1:
             i += 1
         return i
+
+    def relabel_col(self, col_list):
+        n_label = 0
+        for i in range(0, len(col_list)):
+            if col_list[i] != -1:
+                col_list[i] = n_label
+                n_label += 1
 
     def neighbour_colours(self, vertex: Vertex):
         group = vertex.neighbours
@@ -454,42 +532,59 @@ if __name__ == '__main__':
     # gr22 = single_cycle_graph(7)
     # gr3 = complete_graph(12, False)
     # G = random_graph(16, 0.24)
-    G = MyGraph(False, 8, True)
+    G = MyGraph(False, 10000, True)
     gv = G.vertices
-    G.add_edge(Edge(gv[1], gv[2], 1))
-    G.add_edge(Edge(gv[1], gv[4], 1))
-    G.add_edge(Edge(gv[2], gv[3], 1))
-    G.add_edge(Edge(gv[2], gv[4], 1))
-    G.add_edge(Edge(gv[2], gv[5], 1))
-    G.add_edge(Edge(gv[4], gv[5], 1))
-    G.add_edge(Edge(gv[4], gv[0], 1))
-    G.add_edge(Edge(gv[5], gv[0], 1))
-    G.add_edge(Edge(gv[4], gv[6], 1))
-    G.add_edge(Edge(gv[4], gv[7], 1))
-    G.add_edge(Edge(gv[6], gv[7], 1))
-    G.add_edge(Edge(gv[7], gv[5], 1))
+    for j in range(0,1000):
+        k = 10 * j
+        G.add_edge(Edge(gv[k + 1], gv[k + 2], 1))
+        G.add_edge(Edge(gv[k + 1], gv[k + 4], 1))
+        G.add_edge(Edge(gv[k + 2], gv[k + 3], 1))
+        G.add_edge(Edge(gv[k + 2], gv[k + 4], 1))
+        G.add_edge(Edge(gv[k + 2], gv[k + 5], 1))
+        G.add_edge(Edge(gv[k + 4], gv[k + 5], 1))
+        G.add_edge(Edge(gv[k + 4], gv[k + 0], 1))
+        G.add_edge(Edge(gv[k + 5], gv[k + 0], 1))
+        G.add_edge(Edge(gv[k + 4], gv[k + 6], 1))
+        G.add_edge(Edge(gv[k + 4], gv[k + 7], 1))
+        G.add_edge(Edge(gv[k + 6], gv[k + 7], 1))
+        G.add_edge(Edge(gv[k + 7], gv[k + 5], 1))
+        G.add_edge(Edge(gv[k + 6], gv[k + 8], 1))
+        G.add_edge(Edge(gv[k + 4], gv[k + 9], 1))
+        if j > 0:
+            G.add_edge(Edge(gv[k - 1], gv[k + 8], 1))
 
-    F = MyGraph(False, 8, True)
+
+
+    F = MyGraph(False, 10000, True)
     gv = F.vertices
-    F.add_edge(Edge(gv[1], gv[2], 1))
-    F.add_edge(Edge(gv[1], gv[3], 1))
-    F.add_edge(Edge(gv[1], gv[4], 1))
-    F.add_edge(Edge(gv[2], gv[3], 1))
-    F.add_edge(Edge(gv[2], gv[5], 1))
-    F.add_edge(Edge(gv[4], gv[5], 1))
-    F.add_edge(Edge(gv[5], gv[0], 1))
-    F.add_edge(Edge(gv[1], gv[5], 1))
-    F.add_edge(Edge(gv[1], gv[6], 1))
-    F.add_edge(Edge(gv[1], gv[7], 1))
-    F.add_edge(Edge(gv[6], gv[7], 1))
-    F.add_edge(Edge(gv[7], gv[2], 1))
+    for i in range(0,1000):
+        k = 10 * i
+        F.add_edge(Edge(gv[k + 1], gv[k + 2], 1))
+        F.add_edge(Edge(gv[k + 1], gv[k + 3], 1))
+        F.add_edge(Edge(gv[k + 1], gv[k + 4], 1))
+        F.add_edge(Edge(gv[k + 2], gv[k + 3], 1))
+        F.add_edge(Edge(gv[k + 2], gv[k + 5], 1))
+        F.add_edge(Edge(gv[k + 4], gv[k + 5], 1))
+        F.add_edge(Edge(gv[k + 5], gv[k + 0], 1))
+        F.add_edge(Edge(gv[k + 1], gv[k + 5], 1))
+        F.add_edge(Edge(gv[k + 1], gv[k + 6], 1))
+        F.add_edge(Edge(gv[k + 1], gv[k + 7], 1))
+        F.add_edge(Edge(gv[k + 6], gv[k + 7], 1))
+        F.add_edge(Edge(gv[k + 7], gv[k + 2], 1))
+        F.add_edge(Edge(gv[k + 8], gv[k + 6], 1))
+        F.add_edge(Edge(gv[k + 1], gv[k + 9], 1))
+        if i > 0:
+            F.add_edge(Edge(gv[k - 1], gv[k + 8], 1))
+
+
 
     # G = full_tree_graph(7)
     # F = full_tree_graph(7)
     # F.unifromed_search_relable(True)
 
     startt = time()
-    result = G.isisomorphic(F)
+    # result = G.isisomorphic(F)
+    result = G.is_isomorphic_by_colour(F)
     time_elapsed = time() - startt
     print("Elapsed time in seconds:", time_elapsed)
     print(result[0])
