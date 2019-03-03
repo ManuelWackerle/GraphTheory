@@ -5,8 +5,6 @@ from time import time
 from Graphs.graph_io import *
 import random
 from copy import deepcopy
-import networkx as nx
-import matplotlib.pyplot as plt
 
 class MyGraph(object):
     def __init__(self, directed: bool, n: int=0, simple: bool=False):
@@ -130,6 +128,11 @@ class MyGraph(object):
             edge.tail.remove_incidence(edge)
             self._e.remove(edge)
 
+    def del_edge_unsafe(self, edge):
+        edge.head.remove_incidence(edge)
+        edge.tail.remove_incidence(edge)
+        self._e.remove(edge)
+
     def del_vertex(self, vertex):
         if vertex in self._v:
             for edge in vertex.incidence:
@@ -137,34 +140,72 @@ class MyGraph(object):
             self._size -= 1
             self._v.remove(vertex)
 
-    def deepcopy(self):
+    def ordered_copy(self):
         copy = MyGraph(self.directed, 0, self.simple)
-        iso = {}
-        for i in range(0, len(self.vertices)):
-            self.add_vertex(Vertex(self, v.label))
-            iso.update({self.vertices[i]: copy.vertices[i]})
+        size = len(self.vertices)
+        deglist = []
+        for i in range(0, size):
+            deglist.append([])
+        for v in self.vertices:
+            n_v = Vertex(copy, v.label)
+            deglist[v.degree].append(n_v)
+            v.p_new = n_v
+        for d_list in deglist:
+            for n_v in d_list:
+                copy.add_vertex(n_v)
         for e in self.edges:
-            new_e = Edge(iso[e.tail], iso[e.head])
+            new_e = Edge(e.tail.p_new, e.head.p_new)
             copy.add_edge(new_e)
-
-    def mapcopy(self, map):
-        newmap = {}
-        for k in map.keys():
-            nk = deepcopy(k)
-            na = []
-            for v in map.get(k):
-                na.append(v)
-            newmap.update({nk: na})
-        return newmap
-
+        return copy
 
     def contains_cycle(self):
-
         if self.directed:
-            pass
+            print("The method contains_cycle is not implemented for directed graphs")
+            return None
         else:
-            for v in self.vertices:
-                pass
+            ordered = self.ordered_copy()
+            v_length = len(ordered.vertices)
+            point = 0
+            changed = True
+            while changed:
+                iter = point
+                re_point = True
+                changed = False
+                while iter < v_length:
+                    v = ordered.vertices[iter]
+                    if v.degree == 1:
+                        ordered.del_edge_unsafe(v.incidence[0])
+                        changed = True
+                    else:
+                        if re_point:
+                            point = iter
+                            re_point = False
+                    iter += 1
+            if ordered.edges:
+                return True
+            else:
+                return False
+
+    def is_connected(self, dfs: bool=False):
+        frontier = [self.vertices[0]]
+        closed = []
+        incr = 0
+        while len(frontier) != 0:
+            if dfs: cur_ver = frontier.pop()
+            else: cur_ver = frontier.pop(0)
+            for ver in cur_ver.neighbours:
+                if ver not in closed and ver not in frontier:
+                    frontier.append(ver)
+            incr += 1
+            closed.append(cur_ver)
+        if len(closed) == len(self.vertices):
+            return True
+        else:
+            return False
+
+    def is_tree(self):
+        return self.is_connected() and not self.contains_cycle()
+
 
     def is_isomorphic_by_colour(self, graph):
         length = len(self.vertices)
@@ -398,7 +439,6 @@ if __name__ == '__main__':
     print("___________TESTING____________")
     # gr1 = single_path_graph(7)
     # gr2 = single_cycle_graph(7)
-    # gr22 = single_cycle_graph(7)
     # gr3 = complete_graph(12, False)
     # G = random_graph(16, 0.24)
     # G = MyGraph(False, 10000, True)
@@ -455,39 +495,38 @@ if __name__ == '__main__':
     # G = ordered_degree_graph(16)
     # with open('./isographs/colorref_smallexample_2_49.grl', 'r') as f:
     #     G = load_graph(f)
-    with open('./isographs/colorref_largeexample_6_960.grl', 'r') as f:
-        L = load_graph(f, read_list=True)
 
+    with open('./isographs/colorref_largeexample_4_1026.grl', 'r') as f:
+        L = load_graph(f, read_list=True)
+    #
     E = L[0][0]
     F = L[0][1]
     G = L[0][2]
     H = L[0][3]
-    I = L[0][4]
-    J = L[0][5]
-    # print(G)
-    # oldG = G
-    # G.unifromed_search_relable()
-    # print(G)
+    # I = L[0][4]
+    # J = L[0][5]
+    #
     startt = time()
-    # result = G.isisomorphic(F)
-    result = E.is_isomorphic_by_colour(I)
+    result = E.is_isomorphic_by_colour(F)
     print(result[0])
-    result = F.is_isomorphic_by_colour(G)
-    print(result[0])
-    result = F.is_isomorphic_by_colour(H)
-    print(result[0])
-    result = G.is_isomorphic_by_colour(J)
+    result = G.is_isomorphic_by_colour(H)
     print(result[0])
     time_elapsed = time() - startt
     print("Elapsed time in seconds:", time_elapsed)
 
-    R_graph = result[1]
+    # R_graph = result[1]
 
     """RESULTS
     Large example 6 graphs 960 vertices:
-    1 and 5 are isomorphic
+    1 and 5 are isomorphic 
     3 and 6 are isomorphic
-    2 and 4 are undecided"""
+    2 and 4 are undecided
+    all other combinations are non-isomorphic
+    Large example 4 graphs 1026 vertices:
+    1 and 2 are isomorphic  -in 1.7186 seconds
+    3 and 4 are isomorphic  -in 1.3137 seconds
+    all other combinations are non-isomorphic
+    """
     # F = oldG
     # G = random_graph(15, 0.25)
     # E = D.complement()
@@ -499,12 +538,9 @@ if __name__ == '__main__':
     # with open('./samples/randomweighted.gr', 'w') as f:
     #     save_graph(G, f)
 
-    with open('dotgraph.dot', 'w') as f:
-        write_dot(R_graph, f)
-    # G = nx.petersen_graph()
-    # plt.subplot(121)
-    # nx.draw(G, with_labels=True, font_weight='bold')
-    # plt.show()
+    # with open('dotgraph.dot', 'w') as f:
+    #     write_dot(R_graph, f)
+
 
 
 
