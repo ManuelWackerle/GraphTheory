@@ -21,9 +21,11 @@ class Vertex(object):
             label = graph._next_label()
 
         self._graph = graph
+        self.original = None
         # self.colortext = '#00000'
         self.colornum = 0
-        self.p_new = None
+        self.colornew = 0
+        self.pointedby = None
         # used to point to a new attribute of self eg newcolor
         self.label = label
         self._incidence = {}
@@ -110,3 +112,15 @@ class Vertex(object):
         Returns the degree of the vertex
         """
         return sum(map(len, self._incidence.values()))
+
+class VertexPointer(object):
+
+    def __init__(self, vertex: Vertex):
+        self.vertex = vertex
+        self.colornum = vertex.colornum
+
+    def __repr__(self):
+        return 'Vertex(label={}, #incident={})'.format(self.vertex.label, self.colornum)
+
+
+

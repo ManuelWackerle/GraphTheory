@@ -1,0 +1,14 @@
+    RESULTS:
+
+    Large example 6 graphs 960 vertices:
+    1 and 5 are isomorphic
+    3 and 6 are isomorphic
+    2 and 4 are undecided
+    all other combinations are non-isomorphic
+
+
+
+    Large example 4 graphs 1026 vertices:
+    1 and 2 are isomorphic  -in 1.7186 seconds
+    3 and 4 are isomorphic  -in 1.3137 seconds
+    all other combinations are non-isomorphic

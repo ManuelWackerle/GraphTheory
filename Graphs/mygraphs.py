@@ -1,4 +1,4 @@
-from Graphs.vertex import Vertex
+from Graphs.vertex import Vertex, VertexPointer
 from Graphs.edge import Edge
 from typing import IO, Tuple, List, Union, Set
 from time import time
@@ -91,10 +91,13 @@ class MyGraph(object):
         g_new = MyGraph(self.directed, 0, self.simple)
         iso1, iso2 = {}, {}
         for i in range(0, len(self.vertices)):
-            g_new.add_vertex(Vertex(g_new))
+            v_new = Vertex(g_new)
+            v_new.original = self
+            g_new.add_vertex(v_new)
             iso1.update({self.vertices[i]: g_new.vertices[i]})
         for v in other.vertices:
             v_new = Vertex(g_new)
+            v_new.original = other
             g_new.add_vertex(v_new)
             iso2.update({v: v_new})
         for e in self.edges:
@@ -206,29 +209,193 @@ class MyGraph(object):
     def is_tree(self):
         return self.is_connected() and not self.contains_cycle()
 
+    def is_forest(self):
+        return not self.contains_cycle()
 
-    def is_isomorphic_by_colour(self, graph):
-        length = len(self.vertices)
-        n_graph = self + graph
-        if len(graph.vertices) != length:
-            return False, n_graph, None
-        size = length * 2
+
+    # def is_isomorphic_by_colour(self, graph):
+    #     size = len(self.vertices)
+    #     n_graph = self + graph
+    #     if len(graph.vertices) != size:
+    #         return False, n_graph, "quickfalse1"
+    #     partition = []
+    #     for i in range(0,size):
+    #         partition.append([])
+    #     deg_list = [-1] * (size - 1)
+    #     for u in n_graph.vertices:
+    #         ud = u.degree
+    #         deg_list[ud] = ud
+    #     last = self.relabel_col(deg_list)
+    #     for v in n_graph.vertices:
+    #         vd = v.degree
+    #         label = deg_list[vd]
+    #         v.colornum = label
+    #         v.p_new = label
+    #         partition[label].append(v)
+    #     point = last
+    #     n_point = point + 1
+    #     while point != n_point:
+    #         point = n_point
+    #         iter = 0
+    #         while iter < n_point:
+    #             col_group = partition[iter]
+    #             iter += 1
+    #             width = len(col_group)
+    #             if width > 1:
+    #                 type = self.neighbour_colours(col_group[0])
+    #                 first = True
+    #                 for i in range(1, width):
+    #                     v = col_group[i]
+    #                     if self.neighbour_colours(v) != type:
+    #                         if first:
+    #                             nc = n_point
+    #                             n_point += 1
+    #                             # if n_point > size:
+    #                             #     return False, n_graph, "quickfalse3"
+    #                             first = False
+    #                         v.p_new = nc
+    #                 k = 1
+    #                 for j in range(1, width):
+    #                     y = col_group[k]
+    #                     nc = y.p_new
+    #                     if y.colornum != nc:
+    #                         col_group.remove(y)
+    #                         partition[nc].append(y)
+    #                         y.colornum = nc
+    #                     else:
+    #                         k += 1
+    #             else:
+    #                 return False, n_graph, "quickfalse2"
+    #     for pair in partition:
+    #         l = len(pair)
+    #         if l == 1:
+    #             return False, n_graph
+    #         if l > 2:
+    #             return "undetermined", n_graph
+    #     return True, n_graph
+
+
+    def construct_partition(self, n_graph, size):
         partition = []
-        for i in range(0,size):
+        for i in range(0, size):
             partition.append([])
         deg_list = [-1] * (size - 1)
         for u in n_graph.vertices:
             ud = u.degree
             deg_list[ud] = ud
-        self.relabel_col(deg_list)
-        label = 1
+        last = self.relabel_col(deg_list)
         for v in n_graph.vertices:
             vd = v.degree
             label = deg_list[vd]
+            vp = VertexPointer(v)
+            v.pointedby = vp
+            v.original = v.original
             v.colornum = label
             v.colornew = label
             partition[label].append(v)
-        point = label
+        return partition, last
+
+    def is_isomorphic_by_colour_count(self, graph, branching: bool=False):
+        length = len(self.vertices)
+        n_graph = self + graph
+        if len(graph.vertices) != length:
+            return False, n_graph, "immediate"
+        size = length * 1
+        part = self.construct_partition(n_graph, size)
+        partition = part[0]
+        result = self.refine_colours(partition, part[1], size)
+        # print(partition)
+        # if result[0]:
+        #     return result[1], "some_comment"
+        # else:
+        #     return False, "some_comment"
+        if not result[0]:
+            return self.loop_shit(partition, result[1], size, n_graph)
+        else:
+            return result[1], n_graph, "direct"
+
+
+    def loop_shit(self, partition, pointer, size, n_graph):
+        # if not result[0]:
+        self.save_partition(partition)
+        group = self.find_opt_group(partition)
+        res = self.all_matches(group)
+        v_in, matches = res[0], res[1]
+        new_c = pointer + 1
+        for match in matches:
+            print("Entered Again")
+            old_c = v_in.colornum
+            v_in.colornum, v_in.colornew = new_c, new_c
+            match.colornum, match.colornew = new_c, new_c
+            partition[old_c].remove(v_in)
+            partition[old_c].remove(match)
+            partition[new_c].append(v_in)
+            partition[new_c].append(match)
+            print("old group", partition[old_c])
+            print("new group", partition[new_c])
+            result = self.refine_colours(partition, new_c, size)
+            if not result[0]:
+                print("colour refinement returned false - undetermined")
+                count = "not yet implemented"
+                return self.loop_shit(partition, result[1], size, n_graph)
+            else:
+                print("colour refinement returned true - found iso", result[1])
+                if result[1]:
+                    return result[1], n_graph, "iterative"
+                else:
+                    self.restore_partition(partition)
+        return False, n_graph, "final"
+
+
+    def all_matches(self, group):
+        """add comments bro"""
+        matches = []
+        v_in = group[0]
+        orig = v_in.original
+        for v_out in group:
+            if v_out.original != orig:
+                matches.append(v_out)
+        return v_in, matches
+
+    def find_opt_group(self, partition):
+        found = False
+        opt = partition[0]
+        high = len(partition)
+        for group in partition:
+            l = len(group)
+            if l >= 4 and l < high:
+                opt = group
+                high = len(opt)
+        return opt
+
+
+    def save_partition(self, partition):
+        for group in partition:
+            for v in group:
+                v.pointedby.colornum = v.colornum
+
+    def restore_partition(self, partition):
+        for group in partition:
+            iter = 0
+            for l in range(0, len(group)):
+                v = group[iter]
+                if v.colornum != v.pointedby.colornum:
+                    r_col = v.pointedby.colornum
+                    v.colornum = r_col
+                    del group[iter]
+                    partition[r_col].append(v)
+                else:
+                    iter += 1
+
+
+
+
+
+    def refine_colours(self, partition, pointer, limit):
+        """
+        :return: True if a solution is found, followed by the solution True/False
+        """
+        point = pointer
         n_point = point + 1
         while point != n_point:
             point = n_point
@@ -237,6 +404,7 @@ class MyGraph(object):
                 col_group = partition[iter]
                 iter += 1
                 width = len(col_group)
+                print(point)
                 if width > 1:
                     type = self.neighbour_colours(col_group[0])
                     first = True
@@ -246,6 +414,9 @@ class MyGraph(object):
                             if first:
                                 nc = n_point
                                 n_point += 1
+                                # if n_point > limit:
+                                #     return True, False
+                                #even faster cutoff if you return false as soon as a pair of length 1 occurs - no bijection
                                 first = False
                             v.colornew = nc
                     k = 1
@@ -258,13 +429,12 @@ class MyGraph(object):
                             y.colornum = nc
                         else:
                             k += 1
+                else:
+                    return True, False
         for pair in partition:
-            l = len(pair)
-            if l == 1:
-                return False, n_graph
-            if l > 2:
-                return "undetermined", n_graph
-        return True, n_graph
+            if len(pair) > 2:
+                return False, n_point - 1
+        return True, True
 
 
     def relabel_col(self, col_list):
@@ -273,6 +443,7 @@ class MyGraph(object):
             if col_list[i] != -1:
                 col_list[i] = n_label
                 n_label += 1
+        return n_label - 1
 
     def neighbour_colours(self, vertex: Vertex):
         group = vertex.neighbours
@@ -281,6 +452,14 @@ class MyGraph(object):
             gcolour.append(g.colornum)
         s1 = sorted(gcolour)
         return s1
+
+    # def neighbour_colours_p(self, vertex_p: VertexPointer):
+    #     group = vertex_p.neighbours
+    #     gcolour = []
+    #     for g in group:
+    #         gcolour.append(g.colornum)
+    #     s1 = sorted(gcolour)
+    #     return s1
 
     def construct_adjacency_matrix(self):
         adj_matrix = []
@@ -487,59 +666,60 @@ if __name__ == '__main__':
 
 
 
-    # G = full_tree_graph(7)
-    # F = full_tree_graph(7)
+    # E = full_tree_graph(15)
+    # F = full_tree_graph(15)
     # F.unifromed_search_relable(True)
 
-    # G = cube_graph(4)
+    # E = cube_graph(3)
+    # F = cube_graph(3)
+
     # G = ordered_degree_graph(16)
     # with open('./isographs/colorref_smallexample_2_49.grl', 'r') as f:
     #     G = load_graph(f)
 
-    with open('./isographs/colorref_largeexample_4_1026.grl', 'r') as f:
+    with open('./isographs/colorref_smallexample_6_15.grl', 'r') as f:
         L = load_graph(f, read_list=True)
     #
     E = L[0][0]
     F = L[0][1]
     G = L[0][2]
     H = L[0][3]
-    # I = L[0][4]
-    # J = L[0][5]
+    I = L[0][4]
+    J = L[0][5]
     #
     startt = time()
-    result = E.is_isomorphic_by_colour(F)
-    print(result[0])
-    result = G.is_isomorphic_by_colour(H)
-    print(result[0])
+    # result = E.is_isomorphic_by_colour_count(F)
+    # print(result[0], result[2])
+    # result = G.is_isomorphic_by_colour_count(H)
+    # print(result[0], result[2])
+    result = I.is_isomorphic_by_colour_count(J)
+    print(result[0], result[2])
+    # result = F.is_isomorphic_by_colour_count(H)
+    # print(result[0], result[2])
+
     time_elapsed = time() - startt
     print("Elapsed time in seconds:", time_elapsed)
 
-    # R_graph = result[1]
+    # startt = time()
+    # result = E.is_isomorphic_by_colour(F)
+    # print(result[0])
+    # result = G.is_isomorphic_by_colour(H)
+    # print(result[0])
+    # result = E.is_isomorphic_by_colour(G)
+    # print(result[0])
+    # result = F.is_isomorphic_by_colour(H)
+    # print(result[0])
+    #
+    # time_elapsed = time() - startt
+    # print("Elapsed time in seconds:", time_elapsed)
 
-    """RESULTS
-    Large example 6 graphs 960 vertices:
-    1 and 5 are isomorphic 
-    3 and 6 are isomorphic
-    2 and 4 are undecided
-    all other combinations are non-isomorphic
-    Large example 4 graphs 1026 vertices:
-    1 and 2 are isomorphic  -in 1.7186 seconds
-    3 and 4 are isomorphic  -in 1.3137 seconds
-    all other combinations are non-isomorphic
-    """
-    # F = oldG
-    # G = random_graph(15, 0.25)
-    # E = D.complement()
-    # F = D + E
-    # F.add_edge(Edge(F.vertices[1], F.vertices[5]))
-    # with open('examplegraph2.gr', 'w') as f:
-    #     save_graph(D, f)
+    R_graph = result[1]
 
     # with open('./samples/randomweighted.gr', 'w') as f:
     #     save_graph(G, f)
 
-    # with open('dotgraph.dot', 'w') as f:
-    #     write_dot(R_graph, f)
+    with open('dotgraph.dot', 'w') as f:
+        write_dot(R_graph, f)
 
 
 
