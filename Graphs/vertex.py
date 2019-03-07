@@ -120,7 +120,7 @@ class VertexPointer(object):
         self.colornum = vertex.colornum
 
     def __repr__(self):
-        return 'Vertex(label={}, #incident={})'.format(self.vertex.label, self.colornum)
+        return 'Vertex(label={}, #colornum={})'.format(self.vertex.label, self.colornum)
 
 
 

@@ -259,7 +259,7 @@ class MyGraph(object):
     #                     y = col_group[k]
     #                     nc = y.p_new
     #                     if y.colornum != nc:
-    #                         col_group.remove(y)
+    #                         del col_group[k]
     #                         partition[nc].append(y)
     #                         y.colornum = nc
     #                     else:
@@ -303,95 +303,58 @@ class MyGraph(object):
         size = length * 1
         part = self.construct_partition(n_graph, size)
         partition = part[0]
-        result = self.refine_colours(partition, part[1], size)
+        result = self.refine_colours(partition, part[1])
         # print(partition)
         # if result[0]:
         #     return result[1], "some_comment"
         # else:
         #     return False, "some_comment"
         if not result[0]:
-            return self.loop_shit(partition, result[1], size, n_graph)
+            done = False
+            return self.recursive_branching(partition, result[1], n_graph, 0, 0, done)
         else:
-            return result[1], n_graph, "direct"
+            return result[1], n_graph, "direct", 0
 
 
-    def loop_shit(self, partition, pointer, size, n_graph):
-        # if not result[0]:
-        self.save_partition(partition)
-        group = self.find_opt_group(partition)
-        res = self.all_matches(group)
-        v_in, matches = res[0], res[1]
-        new_c = pointer + 1
-        for match in matches:
-            print("Entered Again")
-            old_c = v_in.colornum
-            v_in.colornum, v_in.colornew = new_c, new_c
-            match.colornum, match.colornew = new_c, new_c
-            partition[old_c].remove(v_in)
-            partition[old_c].remove(match)
-            partition[new_c].append(v_in)
-            partition[new_c].append(match)
-            print("old group", partition[old_c])
-            print("new group", partition[new_c])
-            result = self.refine_colours(partition, new_c, size)
-            if not result[0]:
-                print("colour refinement returned false - undetermined")
-                count = "not yet implemented"
-                return self.loop_shit(partition, result[1], size, n_graph)
-            else:
-                print("colour refinement returned true - found iso", result[1])
-                if result[1]:
-                    return result[1], n_graph, "iterative"
+    def recursive_branching(self, partition, pointer, n_graph, count, depth, terminate):
+        done = terminate
+        count_isomorphisms = count
+        recursion_depth= depth
+        old_c = self.find_opt_group(partition)
+        group = partition[old_c]
+        if len(group) > 2:
+            saved = self.save_partition(partition)
+            matches = self.all_matches(group)
+            v_in = group[0]
+            new_c = pointer + 1
+            # print("The number of matches is", len(matches), ":: The pointer is", pointer)
+            i = 0
+            for m in matches:
+                i += 1
+                match = group[m]
+                old_c = v_in.colornum
+                v_in.colornum, v_in.colornew = new_c, new_c
+                match.colornum, match.colornew = new_c, new_c
+                del partition[old_c][0]
+                del partition[old_c][m - 1]
+                partition[new_c].append(v_in)
+                partition[new_c].append(match)
+                result = self.refine_colours(partition, new_c)
+                if not result[0]:
+                    recursion = self.recursive_branching(partition, result[1], n_graph, count_isomorphisms, recursion_depth + 1, done)
+                    count_isomorphisms = recursion[3]
                 else:
-                    self.restore_partition(partition)
-        return False, n_graph, "final"
+                    # print("colour refinement returned true - found iso", result[1])
+                    done = True
+                    if result[1]:
+                        count_isomorphisms += 1
+                        # return result[1], n_graph, "iterative", count_isomorphisms
+                partition = self.restore_partition(saved)
+                group = partition[old_c]
 
+            return False, n_graph, "final, isomorphisms:", count_isomorphisms, done
 
-    def all_matches(self, group):
-        """add comments bro"""
-        matches = []
-        v_in = group[0]
-        orig = v_in.original
-        for v_out in group:
-            if v_out.original != orig:
-                matches.append(v_out)
-        return v_in, matches
-
-    def find_opt_group(self, partition):
-        found = False
-        opt = partition[0]
-        high = len(partition)
-        for group in partition:
-            l = len(group)
-            if l >= 4 and l < high:
-                opt = group
-                high = len(opt)
-        return opt
-
-
-    def save_partition(self, partition):
-        for group in partition:
-            for v in group:
-                v.pointedby.colornum = v.colornum
-
-    def restore_partition(self, partition):
-        for group in partition:
-            iter = 0
-            for l in range(0, len(group)):
-                v = group[iter]
-                if v.colornum != v.pointedby.colornum:
-                    r_col = v.pointedby.colornum
-                    v.colornum = r_col
-                    del group[iter]
-                    partition[r_col].append(v)
-                else:
-                    iter += 1
-
-
-
-
-
-    def refine_colours(self, partition, pointer, limit):
+    def refine_colours(self, partition, pointer):
         """
         :return: True if a solution is found, followed by the solution True/False
         """
@@ -404,7 +367,6 @@ class MyGraph(object):
                 col_group = partition[iter]
                 iter += 1
                 width = len(col_group)
-                print(point)
                 if width > 1:
                     type = self.neighbour_colours(col_group[0])
                     first = True
@@ -414,9 +376,6 @@ class MyGraph(object):
                             if first:
                                 nc = n_point
                                 n_point += 1
-                                # if n_point > limit:
-                                #     return True, False
-                                #even faster cutoff if you return false as soon as a pair of length 1 occurs - no bijection
                                 first = False
                             v.colornew = nc
                     k = 1
@@ -424,7 +383,7 @@ class MyGraph(object):
                         y = col_group[k]
                         nc = y.colornew
                         if y.colornum != nc:
-                            col_group.remove(y)
+                            del col_group[k]
                             partition[nc].append(y)
                             y.colornum = nc
                         else:
@@ -435,6 +394,53 @@ class MyGraph(object):
             if len(pair) > 2:
                 return False, n_point - 1
         return True, True
+
+    def all_matches(self, group):
+        """add comments bro"""
+        matches = []
+        v_in = group[0]
+        orig = v_in.original
+        for pair in range(0, len(group)):
+            v_out = group[pair]
+            if v_out.original != orig:
+                matches.append(pair)
+        return matches
+
+    def find_opt_group(self, partition):
+        found = False
+        opt = 0
+        high = len(partition) + 1
+        for g in range(0, len(partition)):
+            group = partition[g]
+            l = len(group)
+            if l >= 4 and l <= high:
+                opt = g
+                high = len(group)
+        return opt
+
+    def save_partition(self, partition):
+        pointer_partition = []
+        for group in partition:
+            n_group = []
+            for v in group:
+                vp = VertexPointer(v)
+                n_group.append(vp)
+            pointer_partition.append(n_group)
+        return pointer_partition
+
+    def restore_partition(self, saved_partition):
+        restored = []
+        for c_num in range(0, len(saved_partition)):
+            p_group = saved_partition[c_num]
+            n_group = []
+            for l in range(0, len(p_group)):
+                vp = p_group[l]
+                vp.vertex.colornum = c_num
+                vp.vertex.colornew = c_num
+                n_group.append(vp.vertex)
+            restored.append(n_group)
+        return restored
+
 
 
     def relabel_col(self, col_list):
@@ -452,14 +458,6 @@ class MyGraph(object):
             gcolour.append(g.colornum)
         s1 = sorted(gcolour)
         return s1
-
-    # def neighbour_colours_p(self, vertex_p: VertexPointer):
-    #     group = vertex_p.neighbours
-    #     gcolour = []
-    #     for g in group:
-    #         gcolour.append(g.colornum)
-    #     s1 = sorted(gcolour)
-    #     return s1
 
     def construct_adjacency_matrix(self):
         adj_matrix = []
@@ -606,13 +604,6 @@ def full_tree_graph(n):
         i += 1
     return gr
 
-def spanning_tree_from_seq(sequence):
-    pass
-
-def seq_from_spanning_tree(G):
-    G.containscycle
-    pass
-
 
 if __name__ == '__main__':
     print("___________TESTING____________")
@@ -666,8 +657,8 @@ if __name__ == '__main__':
 
 
 
-    # E = full_tree_graph(15)
-    # F = full_tree_graph(15)
+    I = full_tree_graph(31)
+    J = full_tree_graph(31)
     # F.unifromed_search_relable(True)
 
     # E = cube_graph(3)
@@ -684,8 +675,8 @@ if __name__ == '__main__':
     F = L[0][1]
     G = L[0][2]
     H = L[0][3]
-    I = L[0][4]
-    J = L[0][5]
+    # I = L[0][4]
+    # J = L[0][5]
     #
     startt = time()
     # result = E.is_isomorphic_by_colour_count(F)
@@ -693,7 +684,7 @@ if __name__ == '__main__':
     # result = G.is_isomorphic_by_colour_count(H)
     # print(result[0], result[2])
     result = I.is_isomorphic_by_colour_count(J)
-    print(result[0], result[2])
+    print(result[0], result[2], result[3])
     # result = F.is_isomorphic_by_colour_count(H)
     # print(result[0], result[2])
 
@@ -713,13 +704,13 @@ if __name__ == '__main__':
     # time_elapsed = time() - startt
     # print("Elapsed time in seconds:", time_elapsed)
 
-    R_graph = result[1]
+    # R_graph = result[1]
 
     # with open('./samples/randomweighted.gr', 'w') as f:
     #     save_graph(G, f)
 
-    with open('dotgraph.dot', 'w') as f:
-        write_dot(R_graph, f)
+    # with open('dotgraph.dot', 'w') as f:
+    #     write_dot(R_graph, f)
 
 
 
