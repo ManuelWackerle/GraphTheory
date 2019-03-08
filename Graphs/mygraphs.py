@@ -295,31 +295,23 @@ class MyGraph(object):
             partition[label].append(v)
         return partition, last
 
-    def is_isomorphic_by_colour_count(self, graph, branching: bool=False):
+    def is_isomorphic_and_count(self, graph, count_isos: bool=False):
         length = len(self.vertices)
         n_graph = self + graph
         if len(graph.vertices) != length:
-            return False, n_graph, "immediate"
+            return False, 0 ,"immediate"
         size = length * 1
         part = self.construct_partition(n_graph, size)
         partition = part[0]
         result = self.refine_colours(partition, part[1])
-        # print(partition)
-        # if result[0]:
-        #     return result[1], "some_comment"
-        # else:
-        #     return False, "some_comment"
         if not result[0]:
-            done = False
-            return self.recursive_branching(partition, result[1], n_graph, 0, 0, done)
+            number_of_iso = self.count_isomorphisms(partition, result[1], 0)
+            return number_of_iso > 0, number_of_iso, "iterative"
         else:
-            return result[1], n_graph, "direct", 0
+            return result[1], 0, "single_recolour"
 
 
-    def recursive_branching(self, partition, pointer, n_graph, count, depth, terminate):
-        done = terminate
-        count_isomorphisms = count
-        recursion_depth= depth
+    def count_isomorphisms(self, partition, pointer, count):
         old_c = self.find_opt_group(partition)
         group = partition[old_c]
         if len(group) > 2:
@@ -327,7 +319,6 @@ class MyGraph(object):
             matches = self.all_matches(group)
             v_in = group[0]
             new_c = pointer + 1
-            # print("The number of matches is", len(matches), ":: The pointer is", pointer)
             i = 0
             for m in matches:
                 i += 1
@@ -341,18 +332,13 @@ class MyGraph(object):
                 partition[new_c].append(match)
                 result = self.refine_colours(partition, new_c)
                 if not result[0]:
-                    recursion = self.recursive_branching(partition, result[1], n_graph, count_isomorphisms, recursion_depth + 1, done)
-                    count_isomorphisms = recursion[3]
+                    count = self.count_isomorphisms(partition, result[1], count)
                 else:
-                    # print("colour refinement returned true - found iso", result[1])
-                    done = True
                     if result[1]:
-                        count_isomorphisms += 1
-                        # return result[1], n_graph, "iterative", count_isomorphisms
+                        count += 1
                 partition = self.restore_partition(saved)
                 group = partition[old_c]
-
-            return False, n_graph, "final, isomorphisms:", count_isomorphisms, done
+            return count
 
     def refine_colours(self, partition, pointer):
         """
@@ -407,7 +393,6 @@ class MyGraph(object):
         return matches
 
     def find_opt_group(self, partition):
-        found = False
         opt = 0
         high = len(partition) + 1
         for g in range(0, len(partition)):
@@ -440,8 +425,6 @@ class MyGraph(object):
                 n_group.append(vp.vertex)
             restored.append(n_group)
         return restored
-
-
 
     def relabel_col(self, col_list):
         n_label = 0
@@ -611,54 +594,47 @@ if __name__ == '__main__':
     # gr2 = single_cycle_graph(7)
     # gr3 = complete_graph(12, False)
     # G = random_graph(16, 0.24)
-    # G = MyGraph(False, 10000, True)
+    # G = MyGraph(False, 16, True)
     # gv = G.vertices
-    # for j in range(0,1000):
-    #     k = 10 * j
-    #     G.add_edge(Edge(gv[k + 1], gv[k + 2], 1))
-    #     G.add_edge(Edge(gv[k + 1], gv[k + 4], 1))
-    #     G.add_edge(Edge(gv[k + 2], gv[k + 3], 1))
-    #     G.add_edge(Edge(gv[k + 2], gv[k + 4], 1))
-    #     G.add_edge(Edge(gv[k + 2], gv[k + 5], 1))
-    #     G.add_edge(Edge(gv[k + 4], gv[k + 5], 1))
-    #     G.add_edge(Edge(gv[k + 4], gv[k + 0], 1))
-    #     G.add_edge(Edge(gv[k + 5], gv[k + 0], 1))
-    #     G.add_edge(Edge(gv[k + 4], gv[k + 6], 1))
-    #     G.add_edge(Edge(gv[k + 4], gv[k + 7], 1))
-    #     G.add_edge(Edge(gv[k + 6], gv[k + 7], 1))
-    #     G.add_edge(Edge(gv[k + 7], gv[k + 5], 1))
-    #     G.add_edge(Edge(gv[k + 6], gv[k + 8], 1))
-    #     G.add_edge(Edge(gv[k + 4], gv[k + 9], 1))
-    #     if j > 0:
-    #         G.add_edge(Edge(gv[k - 1], gv[k + 8], 1))
+    # G.add_edge(Edge(gv[0], gv[1], 1))
+    # G.add_edge(Edge(gv[1], gv[2], 1))
+    # G.add_edge(Edge(gv[2], gv[3], 1))
+    # G.add_edge(Edge(gv[3], gv[0], 1))
+    # G.add_edge(Edge(gv[0], gv[4], 1))
+    # G.add_edge(Edge(gv[0], gv[5], 1))
+    # G.add_edge(Edge(gv[0], gv[6], 1))
+    # G.add_edge(Edge(gv[1], gv[7], 1))
+    # G.add_edge(Edge(gv[1], gv[8], 1))
+    # G.add_edge(Edge(gv[1], gv[9], 1))
+    # G.add_edge(Edge(gv[2], gv[10], 1))
+    # G.add_edge(Edge(gv[2], gv[11], 1))
+    # G.add_edge(Edge(gv[2], gv[12], 1))
+    # G.add_edge(Edge(gv[3], gv[13], 1))
+    # G.add_edge(Edge(gv[3], gv[14], 1))
+    # G.add_edge(Edge(gv[3], gv[15], 1))
     #
     #
-    #
-    # F = MyGraph(False, 10000, True)
+    # F = MyGraph(False, 16, True)
     # gv = F.vertices
-    # for i in range(0,1000):
-    #     k = 10 * i
-    #     F.add_edge(Edge(gv[k + 1], gv[k + 2], 1))
-    #     F.add_edge(Edge(gv[k + 1], gv[k + 3], 1))
-    #     F.add_edge(Edge(gv[k + 1], gv[k + 4], 1))
-    #     F.add_edge(Edge(gv[k + 2], gv[k + 3], 1))
-    #     F.add_edge(Edge(gv[k + 2], gv[k + 5], 1))
-    #     F.add_edge(Edge(gv[k + 4], gv[k + 5], 1))
-    #     F.add_edge(Edge(gv[k + 5], gv[k + 0], 1))
-    #     F.add_edge(Edge(gv[k + 1], gv[k + 5], 1))
-    #     F.add_edge(Edge(gv[k + 1], gv[k + 6], 1))
-    #     F.add_edge(Edge(gv[k + 1], gv[k + 7], 1))
-    #     F.add_edge(Edge(gv[k + 6], gv[k + 7], 1))
-    #     F.add_edge(Edge(gv[k + 7], gv[k + 2], 1))
-    #     F.add_edge(Edge(gv[k + 8], gv[k + 6], 1))
-    #     F.add_edge(Edge(gv[k + 1], gv[k + 9], 1))
-    #     if i > 0:
-    #         F.add_edge(Edge(gv[k - 1], gv[k + 8], 1))
+    # F.add_edge(Edge(gv[0], gv[1], 1))
+    # F.add_edge(Edge(gv[1], gv[2], 1))
+    # F.add_edge(Edge(gv[2], gv[3], 1))
+    # F.add_edge(Edge(gv[3], gv[0], 1))
+    # F.add_edge(Edge(gv[0], gv[4], 1))
+    # F.add_edge(Edge(gv[0], gv[5], 1))
+    # F.add_edge(Edge(gv[0], gv[6], 1))
+    # F.add_edge(Edge(gv[1], gv[7], 1))
+    # F.add_edge(Edge(gv[1], gv[8], 1))
+    # F.add_edge(Edge(gv[1], gv[9], 1))
+    # F.add_edge(Edge(gv[2], gv[10], 1))
+    # F.add_edge(Edge(gv[2], gv[11], 1))
+    # F.add_edge(Edge(gv[2], gv[12], 1))
+    # F.add_edge(Edge(gv[3], gv[13], 1))
+    # F.add_edge(Edge(gv[3], gv[14], 1))
+    # F.add_edge(Edge(gv[3], gv[15], 1))
 
-
-
-    I = full_tree_graph(31)
-    J = full_tree_graph(31)
+    # I = full_tree_graph(31)
+    # J = full_tree_graph(31)
     # F.unifromed_search_relable(True)
 
     # E = cube_graph(3)
@@ -668,7 +644,7 @@ if __name__ == '__main__':
     # with open('./isographs/colorref_smallexample_2_49.grl', 'r') as f:
     #     G = load_graph(f)
 
-    with open('./isographs/colorref_smallexample_6_15.grl', 'r') as f:
+    with open('./isobranchgraphs/trees90.grl', 'r') as f:
         L = load_graph(f, read_list=True)
     #
     E = L[0][0]
@@ -683,8 +659,8 @@ if __name__ == '__main__':
     # print(result[0], result[2])
     # result = G.is_isomorphic_by_colour_count(H)
     # print(result[0], result[2])
-    result = I.is_isomorphic_by_colour_count(J)
-    print(result[0], result[2], result[3])
+    result = E.is_isomorphic_and_count(H)
+    print(result[0], result[1], result[2])
     # result = F.is_isomorphic_by_colour_count(H)
     # print(result[0], result[2])
 
