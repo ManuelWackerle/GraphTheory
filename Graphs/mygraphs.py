@@ -212,68 +212,163 @@ class MyGraph(object):
     def is_forest(self):
         return not self.contains_cycle()
 
+    def find_tree_root(self, tree, partition):
+        mult = 1
+        found = False
+        for group in partition:
+            if len(group) == 1:
+                root = group[0]
+                found = True
+            elif len(group) == 2 and group[0].is_adjacent(group[1]):
+                root = group[0]
+                mult = 2
+                found = True
+        if not found:
+            root = None
+        return root, mult
 
-    # def is_isomorphic_by_colour(self, graph):
-    #     size = len(self.vertices)
-    #     n_graph = self + graph
-    #     if len(graph.vertices) != size:
-    #         return False, n_graph, "quickfalse1"
-    #     partition = []
-    #     for i in range(0,size):
-    #         partition.append([])
-    #     deg_list = [-1] * (size - 1)
-    #     for u in n_graph.vertices:
-    #         ud = u.degree
-    #         deg_list[ud] = ud
-    #     last = self.relabel_col(deg_list)
-    #     for v in n_graph.vertices:
-    #         vd = v.degree
-    #         label = deg_list[vd]
-    #         v.colornum = label
-    #         v.p_new = label
-    #         partition[label].append(v)
-    #     point = last
-    #     n_point = point + 1
-    #     while point != n_point:
-    #         point = n_point
-    #         iter = 0
-    #         while iter < n_point:
-    #             col_group = partition[iter]
-    #             iter += 1
-    #             width = len(col_group)
-    #             if width > 1:
-    #                 type = self.neighbour_colours(col_group[0])
-    #                 first = True
-    #                 for i in range(1, width):
-    #                     v = col_group[i]
-    #                     if self.neighbour_colours(v) != type:
-    #                         if first:
-    #                             nc = n_point
-    #                             n_point += 1
-    #                             # if n_point > size:
-    #                             #     return False, n_graph, "quickfalse3"
-    #                             first = False
-    #                         v.p_new = nc
-    #                 k = 1
-    #                 for j in range(1, width):
-    #                     y = col_group[k]
-    #                     nc = y.p_new
-    #                     if y.colornum != nc:
-    #                         del col_group[k]
-    #                         partition[nc].append(y)
-    #                         y.colornum = nc
-    #                     else:
-    #                         k += 1
-    #             else:
-    #                 return False, n_graph, "quickfalse2"
-    #     for pair in partition:
-    #         l = len(pair)
-    #         if l == 1:
-    #             return False, n_graph
-    #         if l > 2:
-    #             return "undetermined", n_graph
-    #     return True, n_graph
+    def collect_factors(self, counter, factors):
+        for val in counter:
+            if val >= 2:
+                factors.append(val)
 
+    def count_factors(self, factors):
+        prod = 1
+        for f in factors:
+            prod *= self.fac(f)
+        return prod
+
+    def fac(self, n):
+        k = 0
+        t = 1
+        while k < n:
+            k = k + 1
+            t = t * k
+        return t
+
+    def count_automorphism_tree(self):
+        length = len(self.vertices)
+        if not self.is_tree() or len(self.vertices) != length:
+            print("This graph is not a tree. use a different method")
+            return False
+        part = self.construct_partition(self, (length + 1)//2)
+        partition = part[0]
+        result = self.refine_colours_single(partition, part[1])
+        if not result[0]:
+            factors = []
+            ret = self.find_tree_root(self, partition)
+            root = ret[0]
+            factors.append(ret[1])
+            frontier = [root]
+            closed = []
+            while len(frontier) != 0:
+                counter = [0]*length
+                cur_ver = frontier.pop()
+                for ver in cur_ver.neighbours:
+                    counter[ver.colornum] += 1
+                    if ver not in closed and ver not in frontier:
+                        frontier.append(ver)
+                self.collect_factors(counter, factors)
+                closed.append(cur_ver)
+            return True, self.count_factors(factors), "shit shit shit"
+        else:
+            return result[1], 0, "single recolour count"
+
+    def refine_colours_single(self, partition, pointer):
+        point = pointer
+        n_point = point + 1
+        while point != n_point:
+            point = n_point
+            iter = 0
+            while iter < n_point:
+                col_group = partition[iter]
+                iter += 1
+                width = len(col_group)
+                type = self.neighbour_colours(col_group[0])
+                first = True
+                for i in range(1, width):
+                    v = col_group[i]
+                    if self.neighbour_colours(v) != type:
+                        if first:
+                            nc = n_point
+                            n_point += 1
+                            first = False
+                        v.colornew = nc
+                k = 1
+                for j in range(1, width):
+                    y = col_group[k]
+                    nc = y.colornew
+                    if y.colornum != nc:
+                        del col_group[k]
+                        partition[nc].append(y)
+                        y.colornum = nc
+                    else:
+                        k += 1
+        for pair in partition:
+            if len(pair) > 1:
+                return False, n_point - 1
+        return True, 0
+
+    def is_isomorphic_single(self, graph):
+        size = len(self.vertices)
+        n_graph = self + graph
+        if len(graph.vertices) != size:
+            return False, n_graph, "quickfalse1"
+        partition = []
+        for i in range(0,size):
+            partition.append([])
+        deg_list = [-1] * (size - 1)
+        for u in n_graph.vertices:
+            ud = u.degree
+            deg_list[ud] = ud
+        last = self.relabel_col(deg_list)
+        for v in n_graph.vertices:
+            vd = v.degree
+            label = deg_list[vd]
+            v.colornum = label
+            v.colornew = label
+            partition[label].append(v)
+        point = last
+        n_point = point + 1
+        while point != n_point:
+            point = n_point
+            iter = 0
+            while iter < n_point:
+                col_group = partition[iter]
+                iter += 1
+                width = len(col_group)
+                if width > 1:
+                    type = self.neighbour_colours(col_group[0])
+                    first = True
+                    for i in range(1, width):
+                        v = col_group[i]
+                        if self.neighbour_colours(v) != type:
+                            if first:
+                                nc = n_point
+                                n_point += 1
+                                # if n_point > size:
+                                #     return False, n_graph, "quickfalse3"
+                                first = False
+                            v.colornew = nc
+                    k = 1
+                    for j in range(1, width):
+                        y = col_group[k]
+                        nc = y.colornew
+                        if y.colornum != nc:
+                            del col_group[k]
+                            partition[nc].append(y)
+                            y.colornum = nc
+                        else:
+                            k += 1
+                else:
+                    return False, n_graph, "quickfalse2"
+        for pair in partition:
+            l = len(pair)
+            if l == 1:
+                return False, n_graph
+            if l > 2:
+                return "undetermined", n_graph
+        return True, n_graph, "group multiple"
 
     def construct_partition(self, n_graph, size):
         partition = []
@@ -295,7 +390,7 @@ class MyGraph(object):
             partition[label].append(v)
         return partition, last
 
-    def is_isomorphic_and_count(self, graph, count_isos: bool=False):
+    def is_isomorphic_and_count(self, graph, dont_count: bool=False):
         length = len(self.vertices)
         n_graph = self + graph
         if len(graph.vertices) != length:
@@ -305,13 +400,16 @@ class MyGraph(object):
         partition = part[0]
         result = self.refine_colours(partition, part[1])
         if not result[0]:
-            number_of_iso = self.count_isomorphisms(partition, result[1], 0)
-            return number_of_iso > 0, number_of_iso, "iterative"
+            iso = self.recursive_count(partition, result[1], 0, dont_count)
+            if dont_count:
+                return iso > 0, iso, "True/False only"
+            else:
+                return iso > 0, iso, "iterative count"
         else:
-            return result[1], 0, "single_recolour"
+            return result[1], 0, "single recolour count"
 
 
-    def count_isomorphisms(self, partition, pointer, count):
+    def recursive_count(self, partition, pointer, count, terminate):
         old_c = self.find_opt_group(partition)
         group = partition[old_c]
         if len(group) > 2:
@@ -331,19 +429,22 @@ class MyGraph(object):
                 partition[new_c].append(v_in)
                 partition[new_c].append(match)
                 result = self.refine_colours(partition, new_c)
-                if not result[0]:
-                    count = self.count_isomorphisms(partition, result[1], count)
+                undetermined = not result[0]
+                iso_or_point = result[1]
+                if undetermined:
+                    count = self.recursive_count(partition, iso_or_point, count, terminate)
+                    if terminate:
+                        return count
                 else:
-                    if result[1]:
+                    if iso_or_point:
                         count += 1
+                        if terminate:
+                            return count
                 partition = self.restore_partition(saved)
                 group = partition[old_c]
             return count
 
     def refine_colours(self, partition, pointer):
-        """
-        :return: True if a solution is found, followed by the solution True/False
-        """
         point = pointer
         n_point = point + 1
         while point != n_point:
@@ -382,7 +483,6 @@ class MyGraph(object):
         return True, True
 
     def all_matches(self, group):
-        """add comments bro"""
         matches = []
         v_in = group[0]
         orig = v_in.original
@@ -394,8 +494,9 @@ class MyGraph(object):
 
     def find_opt_group(self, partition):
         opt = 0
-        high = len(partition) + 1
-        for g in range(0, len(partition)):
+        lng = len(partition)
+        high = lng + 1
+        for g in range(0, lng):
             group = partition[g]
             l = len(group)
             if l >= 4 and l <= high:
@@ -633,8 +734,8 @@ if __name__ == '__main__':
     # F.add_edge(Edge(gv[3], gv[14], 1))
     # F.add_edge(Edge(gv[3], gv[15], 1))
 
-    # I = full_tree_graph(31)
-    # J = full_tree_graph(31)
+    I = full_tree_graph(31)
+    J = full_tree_graph(31)
     # F.unifromed_search_relable(True)
 
     # E = cube_graph(3)
@@ -644,7 +745,7 @@ if __name__ == '__main__':
     # with open('./isographs/colorref_smallexample_2_49.grl', 'r') as f:
     #     G = load_graph(f)
 
-    with open('./isobranchgraphs/trees90.grl', 'r') as f:
+    with open('./isobranchgraphs/bigtrees3.grl', 'r') as f:
         L = load_graph(f, read_list=True)
     #
     E = L[0][0]
@@ -659,11 +760,17 @@ if __name__ == '__main__':
     # print(result[0], result[2])
     # result = G.is_isomorphic_by_colour_count(H)
     # print(result[0], result[2])
-    result = E.is_isomorphic_and_count(H)
+    result = I.is_isomorphic_and_count(J, True)
     print(result[0], result[1], result[2])
     # result = F.is_isomorphic_by_colour_count(H)
     # print(result[0], result[2])
 
+    time_elapsed = time() - startt
+    print("Elapsed time in seconds:", time_elapsed)
+
+    startt = time()
+    result = G.count_automorphism_tree()
+    print(result[0], result[1], result[2])
     time_elapsed = time() - startt
     print("Elapsed time in seconds:", time_elapsed)
 

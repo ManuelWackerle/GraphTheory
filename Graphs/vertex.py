@@ -22,11 +22,9 @@ class Vertex(object):
 
         self._graph = graph
         self.original = None
-        # self.colortext = '#00000'
         self.colornum = 0
         self.colornew = 0
         self.pointedby = None
-        # used to point to a new attribute of self eg newcolor
         self.label = label
         self._incidence = {}
 
